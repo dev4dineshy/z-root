@@ -1,56 +1,56 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './index.css';
-import { loadData, saveData, setSession, getSession, clearSession, resetData, exportData } from './data/dataService';
+import { createEmptyData, DataResource, loadResources, logoutWeb, restoreSession } from './data/dataService';
 import { AppData, Account } from './types';
 import WebLogin from './pages/WebLogin';
 import AdminLayout from './pages/admin/AdminLayout';
 import CandidateLayout from './pages/candidate/CandidateLayout';
 
-const initialData = loadData();
-const initialSession = getSession();
-
 export default function App() {
-  const [data, setDataState] = useState<AppData>(initialData);
-  const [session, setSessionState] = useState<Account | null>(initialSession);
+  const [data, setData] = useState<AppData>(createEmptyData());
+  const [session, setSession] = useState<Account | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  function setData(d: AppData) {
-    setDataState(d);
-    saveData(d);
+  const requestResources = useCallback(async (resources: DataResource[]) => {
+    try {
+      const requested = await loadResources(resources);
+      setData(current => ({ ...current, ...requested }));
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load requested data.');
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const account = await restoreSession();
+        setSession(account);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to connect to the API.');
+      } finally { setLoading(false); }
+    })();
+  }, []);
+
+  async function handleLogin(account: Account) {
+    setError('');
+    setSession(account);
   }
 
-  function handleLogin(acc: Account) {
-    setSession(acc);
-    setSessionState(acc);
+  async function handleLogout() {
+    await logoutWeb();
+    setSession(null);
+    setData(createEmptyData());
   }
 
-  function handleLogout() {
-    clearSession();
-    setSessionState(null);
-  }
-
-  function handleReset() {
-    if (!window.confirm('Reset all demo data to seed values?')) return;
-    const fresh = resetData();
-    setDataState(fresh);
-    alert('Demo data reset.');
-  }
-
-  function handleExport() { exportData(data); }
-
+  if (loading) return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>Loading PeopleConnect…</div>;
   return (
     <>
-      {/* Demo controls bar */}
-      {session && (
-        <div style={{ position: 'fixed', bottom: 0, right: 0, background: 'var(--navy)', color: '#fff', padding: '6px 14px', zIndex: 200, display: 'flex', gap: 12, alignItems: 'center', borderTopLeftRadius: 8, fontSize: 12 }}>
-          <span className="demo-badge">DEMO</span>
-          <button onClick={handleReset} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>🔄 Reset data</button>
-          <button onClick={handleExport} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>⬇ Export JSON</button>
-        </div>
-      )}
-
-      {!session && <WebLogin data={data} onLogin={handleLogin} />}
-      {session?.role === 'admin' && <AdminLayout account={session} data={data} setData={setData} onLogout={handleLogout} />}
-      {session?.role === 'candidate' && <CandidateLayout account={session} data={data} setData={setData} onLogout={handleLogout} />}
+      {error && <div className="error-box" style={{ margin: 12 }}>{error}</div>}
+      {!session && <WebLogin onLogin={handleLogin} />}
+      {session?.role === 'admin' && <AdminLayout account={session} data={data} setData={setData} requestResources={requestResources} onLogout={handleLogout} />}
+      {session?.role === 'candidate' && <CandidateLayout account={session} data={data} setData={setData} requestResources={requestResources} onLogout={handleLogout} />}
     </>
   );
 }

@@ -44,20 +44,6 @@ button { cursor: pointer; }
 a { color: var(--teal); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ── Demo badge ───────────────────────────────────────────── */
-.demo-badge {
-  display: inline-block;
-  background: var(--navy);
-  color: rgba(255,255,255,0.85);
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: var(--radius-xs);
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  vertical-align: middle;
-}
-
 /* ── Buttons ──────────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; gap: 6px;

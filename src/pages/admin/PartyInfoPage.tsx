@@ -1,50 +1,47 @@
 import React, { useState } from 'react';
 import { AppData, Account } from '../../types';
-import { saveData } from '../../data/dataService';
+import { updateParty } from '../../data/dataService';
 
 interface Props { account: Account; data: AppData; setData: (d: AppData) => void; }
 
-export default function PartyInfoPage({ account, data, setData }: Props) {
+export default function PartyInfoPage({ data, setData }: Props) {
+  const safeParty = data.party ?? { id: '', name: '', about: '', manifesto: [] };
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(data.party.name);
-  const [about, setAbout] = useState(data.party.about);
-  const [manifesto, setManifesto] = useState(data.party.manifesto.join('\n'));
+  const [name, setName] = useState(safeParty.name);
+  const [about, setAbout] = useState(safeParty.about);
+  const [manifesto, setManifesto] = useState(safeParty.manifesto.join('\n'));
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
   function handleEdit() {
-    setName(data.party.name);
-    setAbout(data.party.about);
-    setManifesto(data.party.manifesto.join('\n'));
+    setName(safeParty.name);
+    setAbout(safeParty.about);
+    setManifesto(safeParty.manifesto.join('\n'));
     setEditing(true);
     setSuccess('');
     setError('');
   }
 
-  function handleSave() {
+  async function handleSave() {
     setError('');
     if (!name.trim()) return setError('Party name is required.');
     if (!about.trim()) return setError('About text is required.');
     const manifestoItems = manifesto.split('\n').map(s => s.trim()).filter(Boolean);
     if (manifestoItems.length === 0) return setError('At least one manifesto point is required.');
-    const updated = {
-      ...data,
-      party: { ...data.party, name: name.trim(), about: about.trim(), manifesto: manifestoItems },
-    };
-    saveData(updated);
-    setData(updated);
-    setEditing(false);
-    setSuccess('Party information updated successfully.');
+    try {
+      const party = await updateParty({ ...safeParty, name: name.trim(), about: about.trim(), manifesto: manifestoItems });
+      setData({ ...data, party }); setEditing(false); setSuccess('Party information updated successfully.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to update party information.'); }
   }
 
-  const party = data.party;
+  const party = safeParty;
 
   return (
     <div className="page-body">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <h2 style={{ fontWeight: 800, color: 'var(--navy)', fontSize: 22 }}>Party Information</h2>
-          <p className="text-muted text-sm">View and edit the party name, about text, and manifesto. Changes are reflected in the mobile app seed data.</p>
+          <p className="text-muted text-sm">View and edit the party name, about text, and manifesto. Changes are reflected in the mobile application.</p>
         </div>
         {!editing && (
           <button className="btn btn-primary" onClick={handleEdit}>✏️ Edit Party Info</button>
@@ -92,7 +89,6 @@ export default function PartyInfoPage({ account, data, setData }: Props) {
               </div>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--navy)' }}>{party.name}</div>
-                <span className="demo-badge">DEMO DATA</span>
               </div>
             </div>
             <div style={{ marginBottom: 16 }}>
@@ -104,7 +100,7 @@ export default function PartyInfoPage({ account, data, setData }: Props) {
           {/* Manifesto card */}
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 14, color: 'var(--navy)' }}>
-              Manifesto Points <span className="demo-badge" style={{ marginLeft: 8 }}>DEMO DATA</span>
+              Manifesto Points
             </div>
             <ol style={{ paddingLeft: 20, lineHeight: 2 }}>
               {party.manifesto.map((item, i) => (
@@ -119,7 +115,7 @@ export default function PartyInfoPage({ account, data, setData }: Props) {
           {data.manifesto_items && data.manifesto_items.length > 0 && (
             <div className="card">
               <div style={{ fontWeight: 700, marginBottom: 14, color: 'var(--navy)' }}>
-                Manifesto Detail Items <span className="demo-badge" style={{ marginLeft: 8 }}>DEMO DATA</span>
+                Manifesto Detail Items
               </div>
               <table>
                 <thead>

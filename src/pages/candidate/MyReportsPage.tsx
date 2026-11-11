@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppData, Account } from '../../types';
 import { exportCSV } from '../../data/dataService';
+import { formatTimestamp } from '../../utils/date';
 
 interface Props { account: Account; data: AppData; }
 
@@ -29,10 +30,10 @@ export default function MyReportsPage({ account, data }: Props) {
       </div>
 
       <div className="stat-grid" style={{ marginBottom: 20 }}>
-        <div className="stat-card"><div className="stat-icon">📝</div><div className="stat-val">{myPosts.length}</div><div className="stat-label">Posts <span className="demo-badge">DEMO DATA</span></div></div>
-        <div className="stat-card"><div className="stat-icon">❤️</div><div className="stat-val">{totalLikes}</div><div className="stat-label">Total Likes <span className="demo-badge">DEMO DATA</span></div></div>
-        <div className="stat-card"><div className="stat-icon">💬</div><div className="stat-val">{totalComments}</div><div className="stat-label">Comments <span className="demo-badge">DEMO DATA</span></div></div>
-        <div className="stat-card"><div className="stat-icon">🔁</div><div className="stat-val">{totalReshares}</div><div className="stat-label">Reshares <span className="demo-badge">DEMO DATA</span></div></div>
+        <div className="stat-card"><div className="stat-icon">📝</div><div className="stat-val">{myPosts.length}</div><div className="stat-label">Posts</div></div>
+        <div className="stat-card"><div className="stat-icon">❤️</div><div className="stat-val">{totalLikes}</div><div className="stat-label">Total Likes</div></div>
+        <div className="stat-card"><div className="stat-icon">💬</div><div className="stat-val">{totalComments}</div><div className="stat-label">Comments</div></div>
+        <div className="stat-card"><div className="stat-icon">🔁</div><div className="stat-val">{totalReshares}</div><div className="stat-label">Reshares</div></div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -48,10 +49,10 @@ export default function MyReportsPage({ account, data }: Props) {
           <tbody>
             {(results as any[]).map(item => (
               <tr key={item.id}>
-                <td><strong>{item.title}</strong> <span className="demo-badge">DEMO DATA</span></td>
+                <td><strong>{item.title}</strong></td>
                 <td><span className={`tag tag-${item.status || 'active'}`}>{item.status || 'active'}</span></td>
                 <td>{region?.name || '—'}</td>
-                <td className="text-muted text-sm">{item.createdAt || item.date}</td>
+                <td className="text-muted text-sm">{formatTimestamp(item.createdAt || item.date)}</td>
                 {filterType === 'posts' && <>
                   <td>{(item as any).metrics?.likes ?? '—'}</td>
                   <td>{(item as any).metrics?.comments ?? '—'}</td>

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppData, Account } from '../../types';
+import { DataResource } from '../../data/dataService';
 import CandidateDashboard from './CandidateDashboard';
 import MyPostsPage from './MyPostsPage';
 import MyChannelsPage from './MyChannelsPage';
 import MyReportsPage from './MyReportsPage';
-import { clearSession } from '../../data/dataService';
 
-interface Props { account: Account; data: AppData; setData: (d: AppData) => void; onLogout: () => void; }
+interface Props { account: Account; data: AppData; setData: (d: AppData) => void; requestResources: (resources: DataResource[]) => Promise<void>; onLogout: () => void; }
 
 const NAV = [
   { key: 'dashboard', label: 'My Dashboard', ico: '📊' },
@@ -15,12 +15,20 @@ const NAV = [
   { key: 'reports',   label: 'My Reports',   ico: '📈' },
 ];
 
-export default function CandidateLayout({ account, data, setData, onLogout }: Props) {
+const PAGE_RESOURCES: Record<string, DataResource[]> = {
+  dashboard: ['candidateReport'],
+  posts: ['posts'],
+  channels: ['channels'],
+  reports: ['regions', 'candidates', 'posts', 'events', 'campaigns'],
+};
+
+export default function CandidateLayout({ account, data, setData, requestResources, onLogout }: Props) {
   const [page, setPage] = useState('dashboard');
+  useEffect(() => { void requestResources(PAGE_RESOURCES[page] ?? []); }, [page, requestResources]);
   const candidate = data.candidates.find(c => c.id === account.candidateId);
   const region    = data.regions.find(r => r.id === candidate?.regionId);
 
-  function handleLogout() { clearSession(); onLogout(); }
+  function handleLogout() { onLogout(); }
 
   const currentNav = NAV.find(n => n.key === page);
 
@@ -102,7 +110,6 @@ export default function CandidateLayout({ account, data, setData, onLogout }: Pr
             <span className="topbar-title">{currentNav?.label}</span>
           </div>
           <div className="topbar-user">
-            <span className="demo-badge">DEMO DATA</span>
             <div className="topbar-avatar">{account.name[0]}</div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{account.name}</div>
@@ -113,7 +120,7 @@ export default function CandidateLayout({ account, data, setData, onLogout }: Pr
 
         <div style={{ flex: 1, overflow: 'auto' }}>
           {page === 'dashboard' && <CandidateDashboard account={account} data={data} setData={setData} setPage={setPage} />}
-          {page === 'posts'     && <MyPostsPage         account={account} data={data} setData={setData} />}
+          {page === 'posts'     && <MyPostsPage         account={account} data={data} setData={setData} requestResources={requestResources} />}
           {page === 'channels'  && <MyChannelsPage      account={account} data={data} setData={setData} />}
           {page === 'reports'   && <MyReportsPage       account={account} data={data} />}
         </div>

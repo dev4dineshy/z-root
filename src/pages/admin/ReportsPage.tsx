@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppData } from '../../types';
 import { exportCSV } from '../../data/dataService';
+import { formatTimestamp } from '../../utils/date';
 
 export default function ReportsPage({ data }: { data: AppData }) {
   const [filterRegion, setFilterRegion] = useState('');
@@ -12,7 +13,6 @@ export default function ReportsPage({ data }: { data: AppData }) {
   const filteredPosts = data.posts.filter(p => {
     const matchRegion = !filterRegion || p.regionId === filterRegion || p.regionId === null;
     const matchCandidate = !filterCandidate || (p.ownerType === 'candidate' && p.ownerId === filterCandidate);
-    const matchType = !filterType || (filterType === 'posts');
     return matchRegion && matchCandidate && (!filterType || filterType === 'posts');
   });
   const filteredEvents = data.events.filter(e => (!filterRegion || e.regionId === filterRegion || e.regionId === null) && (!filterCandidate || e.candidateId === filterCandidate));
@@ -55,21 +55,21 @@ export default function ReportsPage({ data }: { data: AppData }) {
           <div>
             <label>Region</label>
             <select className="input" value={filterRegion} onChange={e => { setFilterRegion(e.target.value); setFilterCandidate(''); }}>
-              <option value="">All regions (DEMO DATA)</option>
-              {data.regions.map(r => <option key={r.id} value={r.id}>{r.name} (DEMO DATA)</option>)}
+              <option value="">All regions</option>
+              {data.regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </div>
           <div>
             <label>Candidate</label>
             <select className="input" value={filterCandidate} onChange={e => setFilterCandidate(e.target.value)}>
-              <option value="">All candidates (DEMO DATA)</option>
-              {filteredCandidates.map(c => <option key={c.id} value={c.id}>{c.name} (DEMO DATA)</option>)}
+              <option value="">All candidates</option>
+              {filteredCandidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
             <label>Report type</label>
             <select className="input" value={filterType} onChange={e => setFilterType(e.target.value)}>
-              <option value="">Posts (DEMO DATA)</option>
+              <option value="">Posts</option>
               <option value="users">Users</option>
               <option value="events">Events</option>
               <option value="campaigns">Campaigns</option>
@@ -86,17 +86,17 @@ export default function ReportsPage({ data }: { data: AppData }) {
         <div className="stat-card">
           <div className="stat-icon">👤</div>
           <div className="stat-val">{filteredUsers.length}</div>
-          <div className="stat-label">Registered Users <span className="demo-badge">DEMO DATA</span></div>
+          <div className="stat-label">Registered Users</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">📝</div>
           <div className="stat-val">{filteredPosts.length}</div>
-          <div className="stat-label">Posts <span className="demo-badge">DEMO DATA</span></div>
+          <div className="stat-label">Posts</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">📅</div>
           <div className="stat-val">{filteredEvents.length}</div>
-          <div className="stat-label">Events <span className="demo-badge">DEMO DATA</span></div>
+          <div className="stat-label">Events</div>
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export default function ReportsPage({ data }: { data: AppData }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h4 style={{ fontWeight: 700 }}>Results</h4>
-          <button className="btn btn-outline btn-sm" onClick={handleExport}>⬇ Export (DEMO DATA)</button>
+          <button className="btn btn-outline btn-sm" onClick={handleExport}>⬇ Export</button>
         </div>
         <table>
           <thead><tr><th>Title</th><th>Type</th><th>Region</th><th>Candidate</th><th>Status</th><th>Date</th></tr></thead>
@@ -116,20 +116,19 @@ export default function ReportsPage({ data }: { data: AppData }) {
                 <tr key={item.id || i}>
                   <td>
                     <strong>{item.title || item.name}</strong>
-                    <span className="demo-badge" style={{ marginLeft: 6 }}>DEMO DATA</span>
                   </td>
                   <td><span className="tag tag-active">{item.ownerType || filterType || 'post'}</span></td>
-                  <td>{region?.name || '—'} {region && <span className="demo-badge">DEMO DATA</span>}</td>
-                  <td>{candidate?.name || '—'} {candidate && <span className="demo-badge">DEMO DATA</span>}</td>
+                  <td>{region?.name || '—'}</td>
+                  <td>{candidate?.name || '—'}</td>
                   <td><span className={`tag tag-${item.status || 'active'}`}>{item.status || 'active'}</span></td>
-                  <td className="text-muted text-sm">{item.createdAt || item.date}</td>
+                  <td className="text-muted text-sm">{formatTimestamp(item.createdAt || item.date)}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
         {results.length === 0 && <p className="text-muted text-sm" style={{ padding: 16 }}>No results for the selected filters.</p>}
-        <p className="text-muted text-sm" style={{ marginTop: 8 }}>Showing {results.length} result{results.length !== 1 ? 's' : ''} <span className="demo-badge">DEMO DATA</span></p>
+        <p className="text-muted text-sm" style={{ marginTop: 8 }}>Showing {results.length} result{results.length !== 1 ? 's' : ''}</p>
       </div>
 
       {/* Report type chips */}

@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppData, Account } from '../../types';
+import { DataResource } from '../../data/dataService';
 import AdminDashboard from './AdminDashboard';
 import CandidatesPage from './CandidatesPage';
 import PostsPage from './PostsPage';
 import RegisteredUsersPage from './RegisteredUsersPage';
 import ReportsPage from './ReportsPage';
 import PartyInfoPage from './PartyInfoPage';
-import { clearSession } from '../../data/dataService';
 
-interface Props { account: Account; data: AppData; setData: (d: AppData) => void; onLogout: () => void; }
+interface Props { account: Account; data: AppData; setData: (d: AppData) => void; requestResources: (resources: DataResource[]) => Promise<void>; onLogout: () => void; }
 
 const NAV = [
   { key: 'dashboard',  label: 'Dashboard',        ico: '📊' },
@@ -19,9 +19,19 @@ const NAV = [
   { key: 'reports',    label: 'Reports',           ico: '📈' },
 ];
 
-export default function AdminLayout({ account, data, setData, onLogout }: Props) {
+const PAGE_RESOURCES: Record<string, DataResource[]> = {
+  dashboard: ['adminReport'],
+  party: ['party'],
+  candidates: ['candidates'],
+  posts: ['posts'],
+  users: ['accounts'],
+  reports: ['regions', 'candidates', 'accounts', 'posts', 'events', 'campaigns'],
+};
+
+export default function AdminLayout({ account, data, setData, requestResources, onLogout }: Props) {
   const [page, setPage] = useState('dashboard');
-  function handleLogout() { clearSession(); onLogout(); }
+  useEffect(() => { void requestResources(PAGE_RESOURCES[page] ?? []); }, [page, requestResources]);
+  function handleLogout() { onLogout(); }
 
   const currentNav = NAV.find(n => n.key === page);
 
@@ -93,7 +103,6 @@ export default function AdminLayout({ account, data, setData, onLogout }: Props)
             <span className="topbar-title">{currentNav?.label}</span>
           </div>
           <div className="topbar-user">
-            <span className="demo-badge">DEMO DATA</span>
             <div className="topbar-avatar">{account.name[0]}</div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{account.name}</div>
@@ -106,7 +115,7 @@ export default function AdminLayout({ account, data, setData, onLogout }: Props)
           {page === 'dashboard'  && <AdminDashboard  account={account} data={data} setData={setData} setPage={setPage} />}
           {page === 'party'      && <PartyInfoPage    account={account} data={data} setData={setData} />}
           {page === 'candidates' && <CandidatesPage  account={account} data={data} setData={setData} />}
-          {page === 'posts'      && <PostsPage        account={account} data={data} setData={setData} />}
+          {page === 'posts'      && <PostsPage        account={account} data={data} setData={setData} requestResources={requestResources} />}
           {page === 'users'      && <RegisteredUsersPage data={data} />}
           {page === 'reports'    && <ReportsPage      data={data} />}
         </div>

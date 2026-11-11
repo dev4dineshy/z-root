@@ -1,26 +1,28 @@
 import React, { useState } from 'react';
-import { AppData, Account } from '../types';
+import { Account } from '../types';
 import { loginWeb } from '../data/dataService';
 
-interface Props { data: AppData; onLogin: (acc: Account) => void; }
+interface Props { onLogin: (acc: Account) => void | Promise<void>; }
 
-export default function WebLogin({ data, onLogin }: Props) {
+export default function WebLogin({ onLogin }: Props) {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!email.trim()) return setError('Email is required');
     if (!password)     return setError('Password is required');
     setLoading(true);
-    const acc = loginWeb(email.trim().toLowerCase(), password, data);
-    setLoading(false);
-    if (!acc) return setError('Invalid email or password, or account does not have portal access.');
-    onLogin(acc);
+    try {
+      const acc = await loginWeb(email.trim().toLowerCase(), password);
+      await onLogin(acc);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid email or password.');
+    } finally { setLoading(false); }
   }
 
   return (
@@ -76,7 +78,7 @@ export default function WebLogin({ data, onLogin }: Props) {
 
         {/* Footer */}
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 20 }}>
-          PeopleConnect · Demo Portal · {new Date().getFullYear()}
+          PeopleConnect Management Portal
         </div>
       </div>
 
@@ -107,7 +109,7 @@ export default function WebLogin({ data, onLogin }: Props) {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="admin@example.com"
+                placeholder="name@organization.org"
                 autoComplete="email"
                 style={{ fontSize: 14 }}
               />
@@ -157,37 +159,6 @@ export default function WebLogin({ data, onLogin }: Props) {
               ) : 'Sign in →'}
             </button>
           </form>
-
-          {/* Demo credentials box */}
-          <div style={{
-            marginTop: 28,
-            background: 'var(--teal-xlight)',
-            border: '1px solid var(--teal-light)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '16px 18px',
-          }}>
-            <div style={{ fontWeight: 700, color: 'var(--teal-dark)', fontSize: 13, marginBottom: 10 }}>
-              🔑 Demo credentials
-            </div>
-            {[
-              { role: 'Admin', email: 'admin@example.com', pass: 'admin123' },
-              { role: 'Candidate (Alex)', email: 'alex@example.com', pass: 'alex123' },
-              { role: 'Candidate (Jordan)', email: 'jordan@example.com', pass: 'jordan123' },
-            ].map(c => (
-              <div key={c.email} style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy)', marginRight: 6 }}>{c.role}</span>
-                <button
-                  type="button"
-                  onClick={() => { setEmail(c.email); setPassword(c.pass); setError(''); }}
-                  style={{ fontSize: 12, color: 'var(--teal)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
-                >
-                  {c.email}
-                </button>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>/ {c.pass}</span>
-              </div>
-            ))}
-            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>Click an email above to auto-fill credentials.</div>
-          </div>
 
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>

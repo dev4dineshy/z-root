@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { AppData, Account, Post } from '../../types';
-import { saveData } from '../../data/dataService';
+import { createPost, DataResource } from '../../data/dataService';
+import { epochNow, formatTimestamp } from '../../utils/date';
 
-interface Props { account: Account; data: AppData; setData: (d: AppData) => void; }
+interface Props { account: Account; data: AppData; setData: (d: AppData) => void; requestResources: (resources: DataResource[]) => Promise<void>; }
 
-export default function MyPostsPage({ account, data, setData }: Props) {
+export default function MyPostsPage({ account, data, setData, requestResources }: Props) {
   const myPosts = data.posts.filter(p => p.ownerType === 'candidate' && p.ownerId === account.candidateId);
   const myChannels = data.channels.filter(c => c.ownerType === 'candidate' && c.ownerId === account.candidateId);
 
@@ -16,21 +17,28 @@ export default function MyPostsPage({ account, data, setData }: Props) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  function handlePublish() {
+  async function openComposer() {
+    await requestResources(['channels']);
+    setShowComposer(true);
+    setSuccess('');
+    setError('');
+  }
+
+  async function handlePublish() {
     setError('');
     if (!title.trim()) return setError('Title required');
     if (!body.trim()) return setError('Body required');
-    const candidate = data.candidates.find(c => c.id === account.candidateId);
-    const newPost: Post = {
-      id: 'p' + Date.now(), ownerType: 'candidate', ownerId: account.candidateId!,
-      regionId: candidate?.regionId || null, title: title.trim(), body: body.trim(),
+    const newPost: Omit<Post, 'id'> = {
+      ownerType: 'candidate', ownerId: account.candidateId!,
+      regionId: account.regionId || null, title: title.trim(), body: body.trim(),
       status, channelIds: selectedChannels, originalPostUrl: null,
-      metrics: { likes: 0, comments: 0, reshares: 0 }, createdAt: new Date().toISOString().split('T')[0],
+      metrics: { likes: 0, comments: 0, reshares: 0 }, createdAt: epochNow(),
     };
-    const updated = { ...data, posts: [...data.posts, newPost] };
-    saveData(updated); setData(updated);
-    setSuccess(`Post "${newPost.title}" saved. (DEMO)`);
-    setTitle(''); setBody(''); setSelectedChannels([]); setShowComposer(false);
+    try {
+      const created = await createPost(newPost);
+      setData({ ...data, posts: [...data.posts, created] }); setSuccess(`Post "${created.title}" saved.`);
+      setTitle(''); setBody(''); setSelectedChannels([]); setShowComposer(false);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to save post.'); }
   }
 
   return (
@@ -40,7 +48,7 @@ export default function MyPostsPage({ account, data, setData }: Props) {
           <h2 style={{ fontWeight: 800, color: 'var(--navy)', fontSize: 22 }}>My Posts</h2>
           <p className="text-muted text-sm">Create and manage your own posts only.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setShowComposer(true); setSuccess(''); setError(''); }}>+ Create My Post</button>
+        <button className="btn btn-primary" onClick={() => void openComposer()}>+ Create My Post</button>
       </div>
 
       {success && <div className="success-box">{success}</div>}
@@ -64,7 +72,7 @@ export default function MyPostsPage({ account, data, setData }: Props) {
               : myChannels.map(ch => (
                 <label key={ch.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer' }}>
                   <input type="checkbox" checked={selectedChannels.includes(ch.id)} onChange={() => setSelectedChannels(cs => cs.includes(ch.id) ? cs.filter(x => x !== ch.id) : [...cs, ch.id])} />
-                  {ch.label} ({ch.platform}) <span className="demo-badge">DEMO DATA</span>
+                  {ch.label} ({ch.platform})
                 </label>
               ))
             }
@@ -93,7 +101,7 @@ export default function MyPostsPage({ account, data, setData }: Props) {
                 <td><span className={`tag tag-${p.status}`}>{p.status}</span></td>
                 <td>{p.channelIds.length}</td>
                 <td className="text-muted text-sm">❤️{p.metrics.likes} 💬{p.metrics.comments} 🔁{p.metrics.reshares}</td>
-                <td className="text-muted text-sm">{p.createdAt}</td>
+                <td className="text-muted text-sm">{formatTimestamp(p.createdAt)}</td>
               </tr>
             ))}
           </tbody>

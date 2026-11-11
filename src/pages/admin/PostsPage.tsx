@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { AppData, Account, Post, Channel } from '../../types';
-import { saveData, getChannelsForOwner } from '../../data/dataService';
+import { AppData, Account, Post } from '../../types';
+import { createPost, DataResource } from '../../data/dataService';
+import { epochNow, formatTimestamp } from '../../utils/date';
 
-interface Props { account: Account; data: AppData; setData: (d: AppData) => void; }
+interface Props { account: Account; data: AppData; setData: (d: AppData) => void; requestResources: (resources: DataResource[]) => Promise<void>; }
 
-export default function PostsPage({ account, data, setData }: Props) {
+export default function PostsPage({ data, setData, requestResources }: Props) {
   const [showComposer, setShowComposer] = useState(false);
   const [postFor, setPostFor] = useState<'party' | 'candidate'>('party');
   const [selectedCandidateId, setSelectedCandidateId] = useState('');
@@ -21,20 +22,26 @@ export default function PostsPage({ account, data, setData }: Props) {
   const candidateChannels = selectedCandidateId ? data.channels.filter(c => c.ownerType === 'candidate' && c.ownerId === selectedCandidateId) : [];
   const availableChannels = postFor === 'party' ? partyChannels : candidateChannels;
   const selectedCandidate = data.candidates.find(c => c.id === selectedCandidateId);
-  const selectedRegion = selectedCandidate ? data.regions.find(r => r.id === selectedCandidate.regionId) : null;
+  const selectedRegionName = selectedCandidate?.regionName;
+
+  async function openComposer() {
+    await requestResources(['party', 'candidates', 'channels']);
+    setShowComposer(true);
+    setSuccess('');
+    setError('');
+  }
 
   function toggleChannel(id: string) {
     setSelectedChannels(cs => cs.includes(id) ? cs.filter(c => c !== id) : [...cs, id]);
   }
 
-  function handlePublish() {
+  async function handlePublish() {
     setError('');
     if (!title.trim()) return setError('Post title is required');
     if (!body.trim()) return setError('Post description is required');
     if (postFor === 'candidate' && !selectedCandidateId) return setError('Select a candidate');
-    const today = new Date().toISOString().split('T')[0];
-    const newPost: Post = {
-      id: 'p' + Date.now(),
+    const today = epochNow();
+    const newPost: Omit<Post, 'id'> = {
       ownerType: postFor,
       ownerId: postFor === 'party' ? data.party.id : selectedCandidateId,
       regionId: postFor === 'candidate' ? (selectedCandidate?.regionId || null) : null,
@@ -50,12 +57,13 @@ export default function PostsPage({ account, data, setData }: Props) {
       imageUrl: null,
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
     };
-    const updated = { ...data, posts: [...data.posts, newPost] };
-    saveData(updated); setData(updated);
-    setSuccess(`Post "${newPost.title}" ${status === 'published' ? 'published' : 'saved as draft'} (DEMO).`);
-    setTitle(''); setBody(''); setSelectedChannels([]); setPostFor('party'); setSelectedCandidateId('');
-    setTags(''); setPostType('announcement');
-    setShowComposer(false);
+    try {
+      const created = await createPost(newPost);
+      setData({ ...data, posts: [...data.posts, created] });
+      setSuccess(`Post "${created.title}" ${status === 'published' ? 'published' : 'saved as draft'}.`);
+      setTitle(''); setBody(''); setSelectedChannels([]); setPostFor('party'); setSelectedCandidateId('');
+      setTags(''); setPostType('announcement'); setShowComposer(false);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to save post.'); }
   }
 
   const platIcon = (p: string) => p === 'facebook' ? '𝗳' : p === 'youtube' ? '▶' : 'X';
@@ -67,7 +75,7 @@ export default function PostsPage({ account, data, setData }: Props) {
           <h2 style={{ fontWeight: 800, color: 'var(--navy)', fontSize: 22 }}>Posts</h2>
           <p className="text-muted text-sm">Create and manage content for party and candidate channels.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setShowComposer(true); setSuccess(''); setError(''); }}>+ Create Post</button>
+        <button className="btn btn-primary" onClick={() => void openComposer()}>+ Create Post</button>
       </div>
 
       {success && <div className="success-box">{success}</div>}
@@ -84,7 +92,7 @@ export default function PostsPage({ account, data, setData }: Props) {
           </div>
 
           <div className="info-box" style={{ marginBottom: 16 }}>
-            📢 Channel shown: {postFor === 'party' ? data.party.name : selectedCandidate?.name || 'Select candidate'} <span className="demo-badge">DEMO DATA</span>
+            📢 Channel shown: {postFor === 'party' ? data.party.name : selectedCandidate?.name || 'Select candidate'}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24 }}>
@@ -111,14 +119,14 @@ export default function PostsPage({ account, data, setData }: Props) {
                   <div>
                     <label>Region</label>
                     <div className="input" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>
-                      {selectedRegion?.name || (selectedCandidateId ? '—' : 'Auto from candidate')} <span className="demo-badge">DEMO DATA</span>
+                      {selectedRegionName || (selectedCandidateId ? '—' : 'Auto from candidate')}
                     </div>
                   </div>
                   <div className="form-group">
                     <label>Candidate</label>
                     <select className="input" value={selectedCandidateId} onChange={e => { setSelectedCandidateId(e.target.value); setSelectedChannels([]); }}>
                       <option value="">Select candidate…</option>
-                      {data.candidates.map(c => <option key={c.id} value={c.id}>{c.name} (DEMO DATA)</option>)}
+                      {data.candidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -126,11 +134,11 @@ export default function PostsPage({ account, data, setData }: Props) {
 
               <div className="form-group">
                 <label>Post title</label>
-                <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Community update (DEMO DATA)" />
+                <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Community update" />
               </div>
               <div className="form-group">
                 <label>Description</label>
-                <textarea className="input" rows={4} value={body} onChange={e => setBody(e.target.value)} placeholder="Programme information and official updates. (DEMO DATA)" />
+                <textarea className="input" rows={4} value={body} onChange={e => setBody(e.target.value)} placeholder="Programme information and official updates." />
                 <div className="text-muted text-sm" style={{ textAlign: 'right' }}>{body.length}/1,000</div>
               </div>
 
@@ -172,7 +180,7 @@ export default function PostsPage({ account, data, setData }: Props) {
                     {(postFor === 'party' ? data.party.name : selectedCandidate?.name || '?')[0]}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{postFor === 'party' ? data.party.name : selectedCandidate?.name || 'Select candidate'} <span className="demo-badge">DEMO DATA</span></div>
+                    <div style={{ fontWeight: 600 }}>{postFor === 'party' ? data.party.name : selectedCandidate?.name || 'Select candidate'}</div>
                     <div className="text-muted text-sm">{postFor === 'party' ? 'Party' : 'Candidate'}</div>
                   </div>
                 </div>
@@ -186,7 +194,7 @@ export default function PostsPage({ account, data, setData }: Props) {
                     <label key={ch.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', cursor: 'pointer' }}>
                       <input type="checkbox" checked={selectedChannels.includes(ch.id)} onChange={() => toggleChannel(ch.id)} />
                       <span style={{ fontSize: 16 }}>{platIcon(ch.platform)}</span>
-                      <span>{ch.label} <span className="demo-badge">DEMO DATA</span></span>
+                      <span>{ch.label}</span>
                       {ch.connected && <span style={{ fontSize: 11, color: 'var(--success)' }}>✓</span>}
                     </label>
                   ))
@@ -194,7 +202,7 @@ export default function PostsPage({ account, data, setData }: Props) {
               </div>
               <div className="info-box" style={{ fontSize: 12 }}>
                 Party selection uses party channels.<br />Candidate selection uses that candidate's channels.<br />
-                <em>Available channels depend on media and permissions. (DEMO DATA)</em>
+                <em>Available channels depend on media and permissions.</em>
               </div>
             </div>
           </div>
@@ -220,7 +228,7 @@ export default function PostsPage({ account, data, setData }: Props) {
                   <td className="text-muted text-sm">{(p.tags || []).join(', ') || '—'}</td>
                   <td>{p.channelIds.length}</td>
                   <td className="text-muted text-sm">❤️{p.metrics.likes} 💬{p.metrics.comments} 🔁{p.metrics.reshares}</td>
-                  <td className="text-muted text-sm">{p.createdAt}</td>
+                  <td className="text-muted text-sm">{formatTimestamp(p.createdAt)}</td>
                 </tr>
               );
             })}

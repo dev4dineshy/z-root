@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppData, Account, Channel } from '../../types';
-import { saveData } from '../../data/dataService';
+import { createChannel, updateChannel } from '../../data/dataService';
 
 interface Props { account: Account; data: AppData; setData: (d: AppData) => void; }
 
@@ -12,28 +12,31 @@ export default function MyChannelsPage({ account, data, setData }: Props) {
   const [form, setForm] = useState({ platform: 'facebook' as Channel['platform'], label: '' });
   const [msg, setMsg] = useState('');
 
-  function addChannel() {
+  async function addChannel() {
     if (!form.label.trim()) return setMsg('Label required');
-    const nc: Channel = { id: 'ch' + Date.now(), ownerType: 'candidate', ownerId: account.candidateId!, platform: form.platform, label: form.label.trim(), connected: false };
-    const updated = { ...data, channels: [...data.channels, nc] };
-    saveData(updated); setData(updated);
-    setMsg(`Channel "${nc.label}" added (DEMO — not actually connected).`);
-    setForm({ platform: 'facebook', label: '' });
+    try {
+      const nc = await createChannel({ ownerType: 'candidate', ownerId: account.candidateId!, platform: form.platform, label: form.label.trim(), connected: false });
+      setData({ ...data, channels: [...data.channels, nc] }); setMsg(`Channel "${nc.label}" added.`);
+      setForm({ platform: 'facebook', label: '' });
+    } catch (err) { setMsg(err instanceof Error ? err.message : 'Unable to add channel.'); }
   }
 
-  function toggleConnect(id: string) {
-    const updated = { ...data, channels: data.channels.map(c => c.id === id ? { ...c, connected: !c.connected } : c) };
-    saveData(updated); setData(updated);
+  async function toggleConnect(id: string) {
+    const current = data.channels.find(c => c.id === id); if (!current) return;
+    try {
+      const saved = await updateChannel({ ...current, connected: !current.connected });
+      setData({ ...data, channels: data.channels.map(c => c.id === id ? saved : c) });
+    } catch (err) { setMsg(err instanceof Error ? err.message : 'Unable to update channel.'); }
   }
 
   return (
     <div className="page-body">
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontWeight: 800, color: 'var(--navy)', fontSize: 22 }}>My Channels</h2>
-        <p className="text-muted text-sm">Manage your own linked social channels. Publishing via these channels is simulated in this demo.</p>
+        <p className="text-muted text-sm">Manage your linked social channels.</p>
       </div>
 
-      <div className="info-box" style={{ marginBottom: 16 }}>ⓘ  Actual channel integration depends on platform APIs and permissions. This is a demo simulation.</div>
+      <div className="info-box" style={{ marginBottom: 16 }}>ⓘ Channel availability depends on platform APIs and permissions.</div>
       {msg && <div className="success-box">{msg}</div>}
 
       {/* Add channel */}
@@ -48,7 +51,7 @@ export default function MyChannelsPage({ account, data, setData }: Props) {
           </div>
           <div>
             <label>Channel label</label>
-            <input className="input" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. Alex Sample Facebook" />
+            <input className="input" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Official Facebook page" />
           </div>
           <button className="btn btn-primary" onClick={addChannel}>Add</button>
         </div>
@@ -62,15 +65,15 @@ export default function MyChannelsPage({ account, data, setData }: Props) {
             {myChannels.map(ch => (
               <tr key={ch.id}>
                 <td>{platIcon(ch.platform)}</td>
-                <td><strong>{ch.label}</strong> <span className="demo-badge">DEMO DATA</span></td>
+                <td><strong>{ch.label}</strong></td>
                 <td>
                   {ch.connected
-                    ? <span className="tag tag-active">✓ Connected (Demo)</span>
+                    ? <span className="tag tag-active">✓ Connected</span>
                     : <span className="tag" style={{ background: '#FEF9C3', color: '#92400E' }}>Not connected</span>}
                 </td>
                 <td>
                   <button className="btn btn-outline btn-sm" onClick={() => toggleConnect(ch.id)}>
-                    {ch.connected ? 'Disconnect (Demo)' : 'Connect (Demo)'}
+                    {ch.connected ? 'Disconnect' : 'Connect'}
                   </button>
                 </td>
               </tr>

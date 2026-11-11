@@ -1,6 +1,6 @@
 export interface Region { id: string; name: string; }
-export interface Candidate { id: string; name: string; regionId: string; email: string; bio: string; photoUrl?: string | null; }
-export interface Account { id: string; role: 'admin' | 'candidate' | 'user'; name: string; email: string; password: string; candidateId?: string; regionId?: string | null; }
+export interface Candidate { id: string; name: string; regionId: string; regionName?: string; email: string; bio: string; photoUrl?: string | null; hasLogin?: boolean; }
+export interface Account { id: string; role: 'admin' | 'candidate' | 'user'; name: string; email: string; candidateId?: string; candidateName?: string | null; regionId?: string | null; regionName?: string | null; }
 export interface Channel {
   id: string;
   ownerType: 'party' | 'candidate';
@@ -92,9 +92,11 @@ export interface ContactInfo {
   hours: string;
 }
 export interface ManifestoItem { id: string; title: string; description: string; category?: string; icon?: string; }
+export interface AdminReport { users: number; candidates: number; posts: number; complaints: number; feedback: number; }
+export interface CandidateReport { candidateId: string; posts: number; channels: number; followers: number; }
 
 export interface AppData {
-  meta: { demo: boolean; description: string };
+  meta: { description: string };
   party: { id: string; name: string; about: string; manifesto: string[] };
   regions: Region[];
   candidates: Candidate[];
@@ -116,4 +118,6 @@ export interface AppData {
   manifesto_items?: ManifestoItem[];
   complaints: any[];
   feedback: any[];
+  adminReport?: AdminReport;
+  candidateReport?: CandidateReport;
 }
